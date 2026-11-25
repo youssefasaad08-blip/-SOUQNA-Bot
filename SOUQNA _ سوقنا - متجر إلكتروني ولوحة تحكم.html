@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOUQNA | سوقنا — متجر إلكتروني ولوحة إدارة</title>
+  <!-- استيراد خط Cairo من Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- تحميل Tailwind CSS للتنسيق المتجاوب السريع مع الحفاظ على المتغيرات والألوان المخصصة -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --ink: #17211d;
+      --muted: #69766f;
+      --green: #176b50;
+      --green-dark: #11523d;
+      --lime: #d6f36a;
+      --paper: #f7f8f4;
+      --line: #e5e9e2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: 'Cairo', Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* تخصيص شريط التمرير */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--paper);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5ce;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--green);
+    }
+
+    /* ألوان وهوية سوقنا */
+    .bg-souqna-green { background-color: var(--green); }
+    .bg-souqna-green-dark { background-color: var(--green-dark); }
+    .text-souqna-green { color: var(--green); }
+    .bg-souqna-lime { background-color: var(--lime); }
+    .text-souqna-lime { color: var(--lime); }
+    .border-souqna-line { border-color: var(--line); }
+    .text-souqna-muted { color: var(--muted); }
+
+    /* الشعار الفني المائل في البانر الترحيبي */
+    .hero-art {
+      font-size: clamp(38px, 6vw, 76px);
+      font-weight: 900;
+      color: var(--lime);
+      transform: rotate(-7deg);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      padding: 18px 28px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      user-select: none;
+      transition: transform 0.3s ease;
+    }
+    .hero-art:hover {
+      transform: rotate(-4deg) scale(1.03);
+    }
+
+    /* انتقالات السلة الجانبية */
+    .cart-backdrop {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .cart-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .cart-drawer {
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .cart-drawer.open {
+      transform: translateX(0);
+    }
+
+    /* نافذة الإشعارات المنبثقة (Toast) */
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .toast-enter {
+      animation: slideUpFade 0.25s ease forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- الشريط العلوي الثابت (Header) -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-souqna-line h-[76px] px-4 md:px-8 flex items-center justify-between gap-4">
+    <!-- الشعار -->
+    <a href="#" onclick="switchView('store'); return false;" class="flex items-center gap-2.5 group">
+      <div class="w-10 h-10 rounded-xl bg-souqna-green text-souqna-lime flex items-center justify-center font-black text-xl shadow-sm group-hover:scale-105 transition">
+        س
+      </div>
+      <div>
+        <div class="text-2xl font-black text-souqna-green tracking-wide leading-none">SOUQNA</div>
+        <span class="block text-[11px] font-bold text-souqna-muted leading-tight">سوقنا — تسوّق أذكى</span>
+      </div>
+    </a>
+
+    <!-- أزرار التنقل الرئيسية -->
+    <nav class="flex items-center gap-1.5 sm:gap-3 bg-[#f2f5f0] p-1.5 rounded-2xl border border-souqna-line">
+      <button id="navStoreBtn" onclick="switchView('store')" class="px-3.5 sm:px-5 py-2 rounded-xl text-sm font-bold transition bg-white text-souqna-green shadow-sm">
+        واجهة المتجر
+      </button>
+      <button id="navAdminBtn" onclick="switchView('admin')" class="px-3.5 sm:px-5 py-2 rounded-xl text-sm font-bold transition text-souqna-muted hover:text-[#17211d] flex items-center gap-1.5">
+        <span>لوحة الإدارة</span>
+        <span id="adminOrderBadge" class="hidden bg-souqna-green text-white text-[11px] px-1.5 py-0.5 rounded-full">0</span>
+      </button>
+    </nav>
+
+    <!-- زر السلة -->
+    <button onclick="toggleCart(true)" class="bg-[#edf3ed] hover:bg-[#e1ece1] text-[#17211d] font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition active:scale-95">
+      <svg class="w-5 h-5 text-souqna-green" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+      <span class="hidden sm:inline">السلة</span>
+      <span id="cartCount" class="bg-souqna-green text-white text-xs font-extrabold px-2 py-0.5 rounded-full">0</span>
+    </button>
+  </header>
+
+  <!-- ==================== 1. واجهة المتجر للعملاء ==================== -->
+  <div id="storeView" class="flex-1">
+    <!-- القسم الترحيبي (Hero Section) -->
+    <section class="max-w-[1200px] mx-auto px-4 md:px-6 pt-6">
+      <div class="bg-souqna-green text-white rounded-[28px] p-7 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-lg">
+        <!-- زخارف خلفية خفيفة -->
+        <div class="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-white/5 pointer-events-none"></div>
+        <div class="absolute right-1/3 -top-20 w-48 h-48 rounded-full bg-[#d6f36a]/10 pointer-events-none"></div>
+
+        <div class="max-w-xl z-10 text-center md:text-right">
+          <span class="inline-block text-souqna-lime font-extrabold text-sm tracking-wide bg-white/10 px-3.5 py-1 rounded-full mb-3">
+            ✨ تسوّق أذكى مع سوقنا
+          </span>
+          <h1 class="text-3xl sm:text-5xl font-black leading-tight mb-4">
+            كل اللي تحتاجه<br />في مكان واحد
+          </h1>
+          <p class="text-[#dce9e1] text-base sm:text-lg mb-7 leading-relaxed">
+            منتجات منزلية عصرية وإكسسوارات موبايل مختارة بعناية فائقة مع خدمة الدفع عند الاستلام وتوصيل سريع لباب بيتك.
+          </p>
+          <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
+            <a href="#productsSection" class="bg-souqna-lime hover:brightness-105 text-[#183629] font-extrabold px-7 py-3.5 rounded-xl transition shadow-md">
+              تسوق الآن
+            </a>
+            <button onclick="switchView('admin')" class="bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3.5 rounded-xl transition text-sm">
+              دخول الإدارة
+            </button>
+          </div>
+        </div>
+
+        <!-- الشعار المائل -->
+        <div class="hero-art z-10 text-center">
+          SOUQNA
+          <span class="block text-xl sm:text-2xl text-white font-bold mt-1 tracking-normal">سوقنا</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- قسم البحث والتصفية وشبكة المنتجات -->
+    <main id="productsSection" class="max-w-[1200px] mx-auto px-4 md:px-6 py-10">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div>
+          <span class="text-souqna-green font-extrabold text-sm">اختياراتنا المميزة</span>
+          <h2 class="text-2xl sm:text-3xl font-black mt-1">أحدث المنتجات</h2>
+        </div>
+
+        <!-- شريط البحث الفوري -->
+        <div class="relative w-full md:w-80">
+          <input
+            type="text"
+            id="searchInput"
+            oninput="renderStoreProducts()"
+            placeholder="ابحث عن منتج أو قسم..."
+            class="w-full bg-white border border-souqna-line rounded-xl py-3 pr-11 pl-4 text-sm focus:outline-none focus:border-[#176b50] shadow-sm"
+          />
+          <svg class="w-5 h-5 text-souqna-muted absolute right-3.5 top-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 10.5a7.5 7.5 0 0013.15 6.15z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- أزرار التصفية السريعة حسب الأقسام -->
+      <div id="categoryFilters" class="flex items-center gap-2 overflow-x-auto pb-3 mb-6">
+        <!-- يتم توليد الأزرار ديناميكياً -->
+      </div>
+
+      <!-- شبكة عرض المنتجات -->
+      <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- يتم توليد البطاقات ديناميكياً -->
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== 2. لوحة الإدارة الشاملة (المتحكم الرسمي) ==================== -->
+  <div id="adminView" class="hidden flex-1 max-w-[1200px] w-full mx-auto px-4 md:px-6 py-8">
+    
+    <!-- شاشة تسجيل دخول الإدارة -->
+    <section id="adminLoginBox" class="max-w-md mx-auto bg-white border border-souqna-line rounded-3xl p-7 sm:p-9 shadow-sm my-6">
+      <div class="w-14 h-14 rounded-2xl bg-[#edf3ed] text-souqna-green flex items-center justify-center mb-5">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-black mb-1">دخول الإدارة</h1>
+      <p class="text-souqna-muted text-sm mb-6">المتحكم الرسمي لإدارة منتجات وطلبات متجر سوقنا</p>
+
+      <form id="adminLoginForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-souqna-muted mb-1">اسم المستخدم</label>
+          <input type="text" name="username" required placeholder="admin" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-souqna-muted mb-1">كلمة المرور</label>
+          <input type="password" name="password" required placeholder="••••••••••••" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+        </div>
+        <button type="submit" class="w-full bg-souqna-green hover:bg-souqna-green-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-sm">
+          تسجيل الدخول
+        </button>
+      </form>
+
+      <p id="adminLoginError" class="text-red-600 text-sm font-bold mt-3 hidden"></p>
+
+      <!-- تلميح بيانات الدخول التجريبية -->
+      <div class="mt-6 p-3.5 rounded-2xl bg-[#f7f8f4] border border-souqna-line text-xs text-souqna-muted leading-relaxed">
+        <div class="font-extrabold text-[#17211d] mb-1">بيانات الدخول الافتراضية للتجربة:</div>
+        <div>اسم المستخدم: <code class="bg-white px-1.5 py-0.5 rounded border font-mono text-souqna-green font-bold">admin</code></div>
+        <div class="mt-1">كلمة المرور: <code id="hintPassDisplay" class="bg-white px-1.5 py-0.5 rounded border font-mono text-souqna-green font-bold">ChangeMe123!</code></div>
+      </div>
+    </section>
+
+    <!-- محتوى لوحة التحكم بعد تسجيل الدخول -->
+    <div id="adminDashboard" class="hidden space-y-6">
+      <!-- رأس لوحة التحكم -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-souqna-line rounded-2xl p-5">
+        <div>
+          <span class="text-xs font-extrabold text-souqna-green bg-[#edf3ed] px-2.5 py-1 rounded-lg">المتحكم الرسمي</span>
+          <h1 class="text-2xl font-black mt-1">لوحة تحكم SOUQNA</h1>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button onclick="openSettingsModal()" class="bg-[#edf3ed] hover:bg-[#dfe9df] text-[#17211d] font-bold px-4 py-2.5 rounded-xl text-sm transition">
+            ⚙️ إعدادات الإدارة
+          </button>
+          <button onclick="adminLogout()" class="bg-red-50 hover:bg-red-100 text-red-700 font-bold px-4 py-2.5 rounded-xl text-sm transition">
+            تسجيل الخروج
+          </button>
+        </div>
+      </div>
+
+      <!-- إحصائيات سريعة أعلى لوحة التحكم -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white border border-souqna-line rounded-2xl p-5">
+          <div class="text-souqna-muted text-xs font-bold mb-1">إجمالي المبيعات (غير الملغاة)</div>
+          <div id="statSales" class="text-2xl sm:text-3xl font-black text-souqna-green">0 ج</div>
+        </div>
+        <div class="bg-white border border-souqna-line rounded-2xl p-5">
+          <div class="text-souqna-muted text-xs font-bold mb-1">إجمالي الطلبات</div>
+          <div id="statOrders" class="text-2xl sm:text-3xl font-black text-[#17211d]">0</div>
+        </div>
+        <div class="bg-white border border-souqna-line rounded-2xl p-5">
+          <div class="text-souqna-muted text-xs font-bold mb-1">الطلبات الجديدة</div>
+          <div id="statNewOrders" class="text-2xl sm:text-3xl font-black text-amber-600">0</div>
+        </div>
+        <div class="bg-white border border-souqna-line rounded-2xl p-5">
+          <div class="text-souqna-muted text-xs font-bold mb-1">عدد المنتجات</div>
+          <div id="statProducts" class="text-2xl sm:text-3xl font-black text-[#17211d]">0</div>
+        </div>
+      </div>
+
+      <!-- تبويبات لوحة الإدارة (الطلبات / المنتجات / إضافة منتج) -->
+      <div class="flex items-center gap-2 border-b border-souqna-line pb-2 overflow-x-auto">
+        <button id="tabOrdersBtn" onclick="switchAdminTab('orders')" class="px-4 py-2.5 rounded-xl text-sm font-extrabold bg-souqna-green text-white transition">
+          📦 إدارة الطلبات
+        </button>
+        <button id="tabProductsBtn" onclick="switchAdminTab('products')" class="px-4 py-2.5 rounded-xl text-sm font-extrabold bg-white text-souqna-muted border border-souqna-line hover:text-[#17211d] transition">
+          🏷️ إدارة المنتجات والمخزون
+        </button>
+        <button id="tabAddProductBtn" onclick="switchAdminTab('addProduct')" class="px-4 py-2.5 rounded-xl text-sm font-extrabold bg-white text-souqna-muted border border-souqna-line hover:text-[#17211d] transition">
+          ➕ إضافة منتج جديد
+        </button>
+      </div>
+
+      <!-- قسم 1: إدارة الطلبات -->
+      <section id="adminOrdersSection" class="bg-white border border-souqna-line rounded-2xl p-5 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <h2 class="text-xl font-black">الطلبات الواردة</h2>
+          <select id="orderStatusFilter" onchange="renderAdminOrders()" class="bg-[#f7f8f4] border border-souqna-line rounded-xl px-3.5 py-2 text-sm font-bold focus:outline-none">
+            <option value="ALL">جميع الحالات</option>
+            <option value="جديد">جديد</option>
+            <option value="قيد التجهيز">قيد التجهيز</option>
+            <option value="تم الشحن">تم الشحن</option>
+            <option value="مكتمل">مكتمل</option>
+            <option value="ملغي">ملغي</option>
+          </select>
+        </div>
+        <div id="adminOrdersList" class="space-y-3">
+          <!-- يتم توليد الطلبات ديناميكياً -->
+        </div>
+      </section>
+
+      <!-- قسم 2: قائمة المنتجات الحالية -->
+      <section id="adminProductsSection" class="hidden bg-white border border-souqna-line rounded-2xl p-5 sm:p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl font-black">قائمة المنتجات بالمخزون</h2>
+          <button onclick="switchAdminTab('addProduct')" class="bg-souqna-lime text-[#183629] font-extrabold px-4 py-2 rounded-xl text-sm">
+            + منتج جديد
+          </button>
+        </div>
+        <div id="adminProductsList" class="divide-y divide-[#e5e9e2]">
+          <!-- يتم توليد المنتجات ديناميكياً -->
+        </div>
+      </section>
+
+      <!-- قسم 3: نموذج إضافة منتج جديد -->
+      <section id="adminAddProductSection" class="hidden bg-white border border-souqna-line rounded-2xl p-5 sm:p-6">
+        <h2 class="text-xl font-black mb-5">إضافة منتج جديد للمتجر</h2>
+        <form id="addProductForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-souqna-muted mb-1">اسم المنتج *</label>
+            <input type="text" name="name" required placeholder="مثال: سماعة بلوتوث لاسلكية برو" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-souqna-muted mb-1">القسم *</label>
+            <input type="text" name="category" list="categorySuggestions" required placeholder="مثال: موبايل أو منزل" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+            <datalist id="categorySuggestions">
+              <option value="منزل">
+              <option value="موبايل">
+              <option value="إلكترونيات">
+              <option value="عناية شخصية">
+            </datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-souqna-muted mb-1">السعر بالجنيه المصري *</label>
+            <input type="number" name="price" min="0" step="0.01" required placeholder="450" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-souqna-muted mb-1">الكمية المتاحة بالمخزون *</label>
+            <input type="number" name="stock" min="0" required placeholder="15" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+          </div>
+
+          <!-- خيارات الصورة: رابط أو رفع صورة محلية أو اختيار أيقونة جاهزة -->
+          <div class="md:col-span-2 bg-[#f7f8f4] border border-souqna-line rounded-2xl p-4">
+            <label class="block text-xs font-bold text-[#17211d] mb-2">صورة المنتج (رابط مباشر أو رفع صورة من جهازك)</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input type="text" id="newProductImageUrl" name="image" placeholder="https://example.com/image.jpg" class="w-full bg-white border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+              <label class="flex items-center justify-center gap-2 bg-white border border-dashed border-[#176b50] text-souqna-green font-bold rounded-xl p-3 text-sm cursor-pointer hover:bg-[#edf3ed] transition">
+                <span>📁 اختر صورة من الجهاز</span>
+                <input type="file" accept="image/*" onchange="handleLocalImageUpload(event, 'newProductImageUrl')" class="hidden" />
+              </label>
+            </div>
+            <!-- صور سريعة جاهزة للتجربة -->
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span class="text-souqna-muted font-bold">أو اختر صورة جاهزة:</span>
+              <button type="button" onclick="setQuickImage('newProductImageUrl', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80')" class="bg-white border border-souqna-line px-2.5 py-1 rounded-lg hover:border-[#176b50]">🎧 سماعة</button>
+              <button type="button" onclick="setQuickImage('newProductImageUrl', 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80')" class="bg-white border border-souqna-line px-2.5 py-1 rounded-lg hover:border-[#176b50]">⌚ ساعة ذكية</button>
+              <button type="button" onclick="setQuickImage('newProductImageUrl', 'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?auto=format&fit=crop&w=600&q=80')" class="bg-white border border-souqna-line px-2.5 py-1 rounded-lg hover:border-[#176b50]">🧴 عطر/منزل</button>
+              <button type="button" onclick="setQuickImage('newProductImageUrl', 'https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=600&q=80')" class="bg-white border border-souqna-line px-2.5 py-1 rounded-lg hover:border-[#176b50]">💡 مصباح ديكور</button>
+            </div>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-souqna-muted mb-1">وصف المنتج</label>
+            <textarea name="description" rows="3" placeholder="اكتب وصفاً مختصراً وجذاباً لمميزات المنتج..." class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]"></textarea>
+          </div>
+
+          <div class="md:col-span-2 flex justify-end">
+            <button type="submit" class="bg-souqna-green hover:bg-souqna-green-dark text-white font-extrabold px-8 py-3.5 rounded-xl transition shadow-sm">
+              حفظ ونشر المنتج
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <!-- ==================== 3. سلة المشتريات الجانبية (Drawer) ==================== -->
+  <div id="cartBackdrop" onclick="toggleCart(false)" class="cart-backdrop fixed inset-0 bg-[#101b16]/60 backdrop-blur-[2px] z-40"></div>
+  <aside id="cartDrawer" class="cart-drawer fixed top-0 left-0 h-full w-full max-w-[430px] bg-white z-50 shadow-2xl flex flex-col">
+    <!-- رأس السلة -->
+    <div class="p-5 border-b border-souqna-line flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-black">سلة المشتريات</h2>
+        <p class="text-xs text-souqna-muted">الدفع نقداً عند الاستلام</p>
+      </div>
+      <button onclick="toggleCart(false)" class="w-9 h-9 rounded-xl bg-[#f7f8f4] hover:bg-[#e5e9e2] flex items-center justify-center font-bold text-lg">
+        ✕
+      </button>
+    </div>
+
+    <!-- محتوى السلة ونموذج الطلب -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
+      <!-- قائمة العناصر -->
+      <div id="cartItemsContainer" class="space-y-3">
+        <!-- يتم توليد عناصر السلة ديناميكياً -->
+      </div>
+
+      <!-- الإجمالي -->
+      <div class="bg-[#f7f8f4] border border-souqna-line rounded-2xl p-4 flex items-center justify-between">
+        <span class="font-bold text-souqna-muted">الإجمالي الكلي:</span>
+        <span class="text-2xl font-black text-souqna-green"><span id="cartTotalDisplay">0</span> جنيه</span>
+      </div>
+
+      <!-- نموذج بيانات التوصيل -->
+      <form id="checkoutForm" class="space-y-3 pt-2 border-t border-souqna-line">
+        <h3 class="font-black text-base">بيانات التوصيل</h3>
+        <div>
+          <input type="text" name="customer_name" required placeholder="الاسم بالكامل *" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+        </div>
+        <div>
+          <input type="tel" name="phone" required placeholder="رقم الهاتف (مثال: 010xxxxxxxx) *" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]" />
+        </div>
+        <div>
+          <textarea name="address" rows="2" required placeholder="العنوان بالتفصيل (المحافظة، المنطقة، اسم الشارع، رقم العقار) *" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm focus:outline-none focus:border-[#176b50]"></textarea>
+        </div>
+        <button type="submit" id="submitOrderBtn" class="w-full bg-souqna-green hover:bg-souqna-green-dark text-white font-extrabold py-3.5 rounded-xl transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+          تأكيد الطلب — الدفع عند الاستلام
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- ==================== 4. نافذة تعديل منتج (Modal) ==================== -->
+  <div id="editProductModal" class="hidden fixed inset-0 z-50 bg-[#101b16]/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-souqna-line rounded-3xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-black">تعديل بيانات المنتج</h3>
+        <button onclick="closeEditModal()" class="w-8 h-8 rounded-lg bg-[#f7f8f4] font-bold">✕</button>
+      </div>
+      <form id="editProductForm" class="space-y-3">
+        <input type="hidden" name="id" />
+        <div>
+          <label class="block text-xs font-bold text-souqna-muted mb-1">اسم المنتج</label>
+          <input type="text" name="name" required class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-2.5 text-sm" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-souqna-muted mb-1">القسم</label>
+            <input type="text" name="category" required class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-2.5 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-souqna-muted mb-1">السعر (جنيه)</label>
+            <input type="number" name="price" min="0" step="0.01" required class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-2.5 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-souqna-muted mb-1">الكمية بالمخزون</label>
+          <input type="number" name="stock" min="0" required class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-2.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-souqna-muted mb-1">رابط الصورة أو رفع صورة جديدة</label>
+          <div class="flex gap-2">
+            <input type="text" id="editProductImageUrl" name="image" class="flex-1 bg-[#f7f8f4] border border-souqna-line rounded-xl p-2.5 text-sm" />
+            <label class="bg-[#edf3ed] text-souqna-green font-bold px-3 py-2.5 rounded-xl text-xs cursor-pointer flex items-center">
+              رفع
+              <input type="file" accept="image/*" onchange="handleLocalImageUpload(event, 'editProductImageUrl')" class="hidden" />
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-souqna-muted mb-1">الوصف</label>
+          <textarea name="description" rows="2" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-2.5 text-sm"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 rounded-xl bg-[#f7f8f4] font-bold text-sm">إلغاء</button>
+          <button type="submit" class="px-6 py-2.5 rounded-xl bg-souqna-green text-white font-extrabold text-sm">حفظ التعديلات</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 5. نافذة إعدادات الإدارة (تغيير كلمة المرور / إعادة الضبط) ==================== -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-[#101b16]/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-souqna-line rounded-3xl max-w-md w-full p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-black">إعدادات لوحة الإدارة</h3>
+        <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-lg bg-[#f7f8f4] font-bold">✕</button>
+      </div>
+      <form id="changePasswordForm" class="space-y-3 border-b border-souqna-line pb-5 mb-5">
+        <h4 class="font-bold text-sm">تغيير كلمة مرور الإدارة</h4>
+        <input type="password" name="newPassword" required minlength="4" placeholder="كلمة المرور الجديدة" class="w-full bg-[#f7f8f4] border border-souqna-line rounded-xl p-3 text-sm" />
+        <button type="submit" class="w-full bg-souqna-green text-white font-bold py-2.5 rounded-xl text-sm">تحديث كلمة المرور</button>
+      </form>
+      <div>
+        <h4 class="font-bold text-sm text-red-700 mb-2">إعادة ضبط بيانات المتجر التجريبية</h4>
+        <p class="text-xs text-souqna-muted mb-3">يؤدي هذا الزر إلى استعادة المنتجات الافتراضية الأساسية ومسح الطلبات التجريبية.</p>
+        <button onclick="resetDemoData()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 font-bold py-2.5 rounded-xl text-sm transition">
+          استعادة البيانات الافتراضية
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 6. نافذة تأكيد مخصصة (بدلاً من confirm) ==================== -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-50 bg-[#101b16]/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-souqna-line rounded-3xl max-w-sm w-full p-6 shadow-xl text-center">
+      <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-3 text-xl font-black">!</div>
+      <h3 id="confirmTitle" class="text-lg font-black mb-1">تأكيد الإجراء</h3>
+      <p id="confirmMessage" class="text-sm text-souqna-muted mb-5">هل أنت متأكد من المتابعة؟</p>
+      <div class="flex gap-2">
+        <button id="confirmCancelBtn" class="flex-1 py-2.5 rounded-xl bg-[#f7f8f4] font-bold text-sm">إلغاء</button>
+        <button id="confirmOkBtn" class="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm">نعم، متابعة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- حاوية الإشعارات الفورية (Toast Container) -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- تذييل الصفحة -->
+  <footer class="bg-white border-t border-souqna-line py-7 px-4 text-center text-sm text-souqna-muted mt-12">
+    <div class="font-black text-souqna-green text-lg mb-1">SOUQNA | سوقنا</div>
+    <p>© 2026 SOUQNA — سوقنا. جميع الحقوق محفوظة. متجر إلكتروني متكامل مع الدفع عند الاستلام.</p>
+  </footer>
+
+  <!-- ==================== المنطق البرمجي للتطبيق (JavaScript) ==================== -->
+  <script>
+    /**
+     * مفاتيح التخزين المحلي (localStorage) لضمان استمرارية البيانات في المتصفح
+     */
+    const STORAGE_KEYS = {
+      PRODUCTS: 'souqna_products_v1',
+      ORDERS: 'souqna_orders_v1',
+      CART: 'souqna_cart_v1',
+      ADMIN_PASS: 'souqna_admin_pass_v1',
+      ADMIN_AUTH: 'souqna_admin_logged_in_v1'
+    };
+
+    /**
+     * بيانات المنتجات الافتراضية الأنيقة (منزل وموبايل) عند التشغيل لأول مرة
+     */
+    const DEFAULT_PRODUCTS = [
+      {
+        id: 101,
+        name: 'سماعة أذن لاسلكية عازلة للضوضاء',
+        category: 'موبايل',
+        price: 850,
+        stock: 14,
+        image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=600&q=80',
+        description: 'صوت نقي وعزل ذكي للضوضاء مع علبة شحن سريعة تدوم حتى 24 ساعة.'
+      },
+      {
+        id: 102,
+        name: 'مصباح مكتب LED ذكي بقاعدة شحن',
+        category: 'منزل',
+        price: 620,
+        stock: 9,
+        image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80',
+        description: 'إضاءة مريحة للعين بثلاث درجات سطوع مختلفة وتصميم عصري يناسب غرف المعيشة والمكتب.'
+      },
+      {
+        id: 103,
+        name: 'حامل موبايل مغناطيسي للسيارة والمكتب',
+        category: 'موبايل',
+        price: 240,
+        stock: 25,
+        image: 'https://images.unsplash.com/photo-1586953208448-b95a79798f07?auto=format&fit=crop&w=600&q=80',
+        description: 'تثبيت فائق القوة ودوران 360 درجة متوافق مع جميع الهواتف الذكية.'
+      },
+      {
+        id: 104,
+        name: 'ماكينة تحضير القهوة المقطرة الفاخرة',
+        category: 'منزل',
+        price: 1150,
+        stock: 6,
+        image: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=600&q=80',
+        description: 'استمتع بمذاق القهوة الطازجة كل صباح مع إبريق زجاجي مقاوم للحرارة وفلتر دائم.'
+      },
+      {
+        id: 105,
+        name: 'باور بانك 20,000 مللي أمبير شحن فائق',
+        category: 'موبايل',
+        price: 980,
+        stock: 11,
+        image: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=600&q=80',
+        description: 'شاشة رقمية لعرض نسبة الشحن ومنفذين USB-C لشحن هاتفين في وقت واحد بأمان.'
+      },
+      {
+        id: 106,
+        name: 'منظم أدوات مطبخ وحمام متعدد الطبقات',
+        category: 'منزل',
+        price: 390,
+        stock: 0,
+        image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+        description: 'تصميم موفر للمساحة ومقاوم للرطوبة لترتيب كافة مستلزمات المنزل بأناقة.'
+      }
+    ];
+
+    // حالة التطبيق العامة
+    let products = [];
+    let orders = [];
+    let cart = [];
+    let selectedCategory = 'الكل';
+
+    /**
+     * تهيئة البيانات من localStorage عند فتح الصفحة
+     */
+    function initApp() {
+      try {
+        const savedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+        if (savedProducts) {
+          products = JSON.parse(savedProducts);
+        } else {
+          products = [...DEFAULT_PRODUCTS];
+          saveProducts();
+        }
+
+        const savedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS);
+        orders = savedOrders ? JSON.parse(savedOrders) : [];
+
+        const savedCart = localStorage.getItem(STORAGE_KEYS.CART);
+        cart = savedCart ? JSON.parse(savedCart) : [];
+
+        if (!localStorage.getItem(STORAGE_KEYS.ADMIN_PASS)) {
+          localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, 'ChangeMe123!');
+        }
+        document.getElementById('hintPassDisplay').textContent = localStorage.getItem(STORAGE_KEYS.ADMIN_PASS);
+      } catch (err) {
+        console.error('خطأ في تحميل البيانات:', err);
+        products = [...DEFAULT_PRODUCTS];
+      }
+
+      renderCategoryFilters();
+      renderStoreProducts();
+      updateCartUI();
+      updateAdminBadge();
+      checkAdminAuthState();
+    }
+
+    // دوال الحفظ في التخزين المحلي
+    function saveProducts() {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    }
+    function saveOrders() {
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+      updateAdminBadge();
+    }
+    function saveCart() {
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+    }
+
+    // تنسيق العملة والأمان ضد XSS
+    const formatMoney = (num) => Number(num || 0).toLocaleString('ar-EG');
+    const escapeHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+    /**
+     * نظام الإشعارات الفورية (Toast) بدلاً من alert()
+     */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const isError = type === 'error';
+      toast.className = `toast-enter pointer-events-auto flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl shadow-lg border text-sm font-bold ${
+        isError
+          ? 'bg-red-50 border-red-200 text-red-800'
+          : 'bg-[#17211d] border-[#283831] text-white'
+      }`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <span class="text-base">${isError ? '⚠️' : '✅'}</span>
+          <span>${escapeHtml(message)}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" class="opacity-60 hover:opacity-100 text-xs">✕</button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+      }, 3500);
+    }
+
+    /**
+     * نافذة تأكيد مخصصة بدلاً من confirm()
+     */
+    function showConfirm(title, message) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        modal.classList.remove('hidden');
+
+        const cleanup = (result) => {
+          modal.classList.add('hidden');
+          resolve(result);
+        };
+
+        document.getElementById('confirmOkBtn').onclick = () => cleanup(true);
+        document.getElementById('confirmCancelBtn').onclick = () => cleanup(false);
+      });
+    }
+
+    /**
+     * التبديل بين واجهة المتجر ولوحة الإدارة
+     */
+    function switchView(viewName) {
+      const storeView = document.getElementById('storeView');
+      const adminView = document.getElementById('adminView');
+      const navStoreBtn = document.getElementById('navStoreBtn');
+      const navAdminBtn = document.getElementById('navAdminBtn');
+
+      if (viewName === 'store') {
+        storeView.classList.remove('hidden');
+        adminView.classList.add('hidden');
+        navStoreBtn.className = 'px-3.5 sm:px-5 py-2 rounded-xl text-sm font-bold transition bg-white text-souqna-green shadow-sm';
+        navAdminBtn.className = 'px-3.5 sm:px-5 py-2 rounded-xl text-sm font-bold transition text-souqna-muted hover:text-[#17211d] flex items-center gap-1.5';
+        renderCategoryFilters();
+        renderStoreProducts();
+      } else {
+        storeView.classList.add('hidden');
+        adminView.classList.remove('hidden');
+        navAdminBtn.className = 'px-3.5 sm:px-5 py-2 rounded-xl text-sm font-bold transition bg-white text-souqna-green shadow-sm flex items-center gap-1.5';
+        navStoreBtn.className = 'px-3.5 sm:px-5 py-2 rounded-xl text-sm font-bold transition text-souqna-muted hover:text-[#17211d]';
+        checkAdminAuthState();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ==================== منطق واجهة المتجر للعملاء ====================
+
+    function renderCategoryFilters() {
+      const container = document.getElementById('categoryFilters');
+      const categories = ['الكل', ...new Set(products.map(p => p.category.trim()).filter(Boolean))];
+      if (!categories.includes(selectedCategory)) selectedCategory = 'الكل';
+
+      container.innerHTML = categories.map(cat => {
+        const active = cat === selectedCategory;
+        return `
+          <button
+            onclick="selectCategory('${escapeHtml(cat)}')"
+            class="px-4 py-2 rounded-xl text-sm font-extrabold whitespace-nowrap transition ${
+              active
+                ? 'bg-souqna-green text-white shadow-sm'
+                : 'bg-white text-souqna-muted border border-souqna-line hover:text-[#17211d]'
+            }">
+            ${escapeHtml(cat)}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectCategory(cat) {
+      selectedCategory = cat;
+      renderCategoryFilters();
+      renderStoreProducts();
+    }
+
+    function renderStoreProducts() {
+      const grid = document.getElementById('productsGrid');
+      const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+
+      const filtered = products.filter(p => {
+        const matchesCat = selectedCategory === 'الكل' || p.category === selectedCategory;
+        const matchesQuery = !query || (p.name + ' ' + p.category + ' ' + p.description).toLowerCase().includes(query);
+        return matchesCat && matchesQuery;
+      });
+
+      if (!filtered.length) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white border border-souqna-line rounded-2xl p-10 text-center">
+            <div class="text-4xl mb-2">🔍</div>
+            <h3 class="font-black text-lg mb-1">لا توجد منتجات مطابقة</h3>
+            <p class="text-sm text-souqna-muted">جرّب البحث بكلمة أخرى أو اختر قسماً مختلفاً.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(p => {
+        const outOfStock = p.stock < 1;
+        const fallbackImg = `https://placehold.co/600x450/edf3ed/176b50?text=${encodeURIComponent(p.name)}`;
+        return `
+          <article class="bg-white border border-souqna-line rounded-[20px] p-4 flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div class="relative overflow-hidden rounded-2xl bg-[#f0f2ed] h-48 mb-3.5">
+                <img
+                  src="${escapeHtml(p.image || fallbackImg)}"
+                  onerror="this.onerror=null;this.src='${fallbackImg}'"
+                  alt="${escapeHtml(p.name)}"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                />
+                <span class="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur px-2.5 py-1 rounded-lg text-xs font-extrabold text-souqna-green shadow-xs">
+                  ${escapeHtml(p.category)}
+                </span>
+                ${outOfStock ? '<span class="absolute inset-0 bg-black/50 text-white font-black flex items-center justify-center text-sm">نفدت الكمية</span>' : ''}
+              </div>
+
+              <h3 class="font-extrabold text-base leading-snug mb-1.5 line-clamp-1" title="${escapeHtml(p.name)}">
+                ${escapeHtml(p.name)}
+              </h3>
+              <p class="text-souqna-muted text-xs leading-relaxed line-clamp-2 mb-3 min-h-[36px]">
+                ${escapeHtml(p.description || 'منتج عالي الجودة من تشكيلة سوقنا المختارة.')}
+              </p>
+            </div>
+
+            <div class="pt-3 border-t border-souqna-line">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xl font-black text-souqna-green">
+                  ${formatMoney(p.price)} <span class="text-xs font-bold">جنيه</span>
+                </div>
+                <div class="text-xs font-bold ${outOfStock ? 'text-red-600' : 'text-souqna-muted'}">
+                  ${outOfStock ? 'غير متاح' : `المتاح: ${p.stock}`}
+                </div>
+              </div>
+
+              <button
+                onclick="addToCart(${p.id})"
+                ${outOfStock ? 'disabled' : ''}
+                class="w-full py-2.5 px-4 rounded-xl font-extrabold text-sm transition flex items-center justify-center gap-2 ${
+                  outOfStock
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-souqna-green hover:bg-souqna-green-dark text-white active:scale-95'
+                }">
+                <span>${outOfStock ? 'نفد المخزون' : 'أضف للسلة'}</span>
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // ==================== منطق سلة المشتريات وإتمام الطلب ====================
+
+    function toggleCart(open) {
+      const drawer = document.getElementById('cartDrawer');
+      const backdrop = document.getElementById('cartBackdrop');
+      if (open) {
+        drawer.classList.add('open');
+        backdrop.classList.add('open');
+        updateCartUI();
+      } else {
+        drawer.classList.remove('open');
+        backdrop.classList.remove('open');
+      }
+    }
+
+    function addToCart(productId) {
+      const product = products.find(p => p.id === productId);
+      if (!product || product.stock < 1) {
+        showToast('عذراً، هذا المنتج غير متوفر حالياً', 'error');
+        return;
+      }
+
+      const existing = cart.find(item => item.id === productId);
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          showToast(`الحد الأقصى المتاح بالمخزون هو ${product.stock} قطع`, 'error');
+          return;
+        }
+        existing.quantity += 1;
+      } else {
+        cart.push({ id: productId, quantity: 1 });
+      }
+
+      saveCart();
+      updateCartUI();
+      showToast(`تمت إضافة "${product.name}" إلى السلة`);
+    }
+
+    function changeCartQty(productId, delta) {
+      const item = cart.find(i => i.id === productId);
+      const product = products.find(p => p.id === productId);
+      if (!item || !product) return;
+
+      const nextQty = item.quantity + delta;
+      if (nextQty <= 0) {
+        removeFromCart(productId);
+        return;
+      }
+      if (nextQty > product.stock) {
+        showToast(`المتاح بالمخزون ${product.stock} قطع فقط`, 'error');
+        return;
+      }
+
+      item.quantity = nextQty;
+      saveCart();
+      updateCartUI();
+    }
+
+    function removeFromCart(productId) {
+      cart = cart.filter(i => i.id !== productId);
+      saveCart();
+      updateCartUI();
+    }
+
+    function updateCartUI() {
+      // تنظيف أي منتجات محذوفة أو نفدت من المخزون
+      cart = cart.filter(item => {
+        const p = products.find(prod => prod.id === item.id);
+        if (!p || p.stock < 1) return false;
+        if (item.quantity > p.stock) item.quantity = p.stock;
+        return true;
+      });
+      saveCart();
+
+      const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('cartCount').textContent = totalCount;
+
+      const container = document.getElementById('cartItemsContainer');
+      const submitBtn = document.getElementById('submitOrderBtn');
+
+      if (!cart.length) {
+        container.innerHTML = `
+          <div class="text-center py-8 bg-[#f7f8f4] rounded-2xl border border-dashed border-souqna-line">
+            <div class="text-3xl mb-2">🛒</div>
+            <p class="font-bold text-sm text-souqna-muted">سلة المشتريات فارغة حالياً</p>
+          </div>
+        `;
+        document.getElementById('cartTotalDisplay').textContent = '0';
+        submitBtn.disabled = true;
+        return;
+      }
+
+      submitBtn.disabled = false;
+      let totalAmount = 0;
+
+      container.innerHTML = cart.map(item => {
+        const p = products.find(prod => prod.id === item.id);
+        const lineTotal = p.price * item.quantity;
+        totalAmount += lineTotal;
+        return `
+          <div class="flex items-center justify-between gap-3 bg-[#f7f8f4] border border-souqna-line p-3 rounded-2xl">
+            <div class="flex-1 min-w-0">
+              <div class="font-extrabold text-sm truncate">${escapeHtml(p.name)}</div>
+              <div class="text-xs text-souqna-green font-bold mt-0.5">${formatMoney(p.price)} جنيه × ${item.quantity} = ${formatMoney(lineTotal)} جنيه</div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="changeCartQty(${p.id}, -1)" class="w-7 h-7 rounded-lg bg-white border border-souqna-line font-black text-sm hover:bg-gray-100">-</button>
+              <span class="w-6 text-center font-extrabold text-sm">${item.quantity}</span>
+              <button type="button" onclick="changeCartQty(${p.id}, 1)" class="w-7 h-7 rounded-lg bg-white border border-souqna-line font-black text-sm hover:bg-gray-100">+</button>
+              <button type="button" onclick="removeFromCart(${p.id})" title="حذف" class="w-7 h-7 rounded-lg bg-red-50 text-red-600 font-bold text-xs mr-1 hover:bg-red-100">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('cartTotalDisplay').textContent = formatMoney(totalAmount);
+    }
+
+    // إتمام الطلب وخصم المخزون وحفظ الطلب
+    document.getElementById('checkoutForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!cart.length) return;
+
+      const formData = new FormData(e.target);
+      const customer_name = formData.get('customer_name').trim();
+      const phone = formData.get('phone').trim();
+      const address = formData.get('address').trim();
+
+      if (!customer_name || !phone || !address) {
+        showToast('يرجى إكمال جميع بيانات التوصيل', 'error');
+        return;
+      }
+
+      let orderTotal = 0;
+      const orderItems = [];
+
+      // التحقق من توفر الكميات قبل الخصم
+      for (const item of cart) {
+        const product = products.find(p => p.id === item.id);
+        if (!product || product.stock < item.quantity) {
+          showToast(`عذراً، الكمية المطلوبة من "${product ? product.name : 'المنتج'}" لم تعد متاحة`, 'error');
+          updateCartUI();
+          return;
+        }
+        orderTotal += product.price * item.quantity;
+        orderItems.push({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity
+        });
+      }
+
+      // خصم الكميات من المخزون
+      for (const item of orderItems) {
+        const product = products.find(p => p.id === item.id);
+        product.stock -= item.quantity;
+      }
+      saveProducts();
+
+      // إنشاء وحفظ الطلب برقم تعريفي
+      const nextId = orders.length ? Math.max(...orders.map(o => o.id)) + 1 : 1001;
+      const newOrder = {
+        id: nextId,
+        customer_name,
+        phone,
+        address,
+        items: orderItems,
+        total: orderTotal,
+        status: 'جديد',
+        created_at: new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+      };
+
+      orders.unshift(newOrder);
+      saveOrders();
+
+      // تفريغ السلة وتحديث الواجهات
+      cart = [];
+      saveCart();
+      e.target.reset();
+      updateCartUI();
+      renderStoreProducts();
+      toggleCart(false);
+
+      showToast(`تم تأكيد طلبك بنجاح! رقم الطلب #${newOrder.id} — الإجمالي ${formatMoney(orderTotal)} جنيه`);
+    });
+
+    // ==================== منطق لوحة الإدارة الشاملة ====================
+
+    function checkAdminAuthState() {
+      const isLoggedIn = sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true';
+      const loginBox = document.getElementById('adminLoginBox');
+      const dashboard = document.getElementById('adminDashboard');
+
+      if (isLoggedIn) {
+        loginBox.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+        refreshAdminDashboard();
+      } else {
+        loginBox.classList.remove('hidden');
+        dashboard.classList.add('hidden');
+      }
+    }
+
+    document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const username = formData.get('username').trim();
+      const password = formData.get('password');
+      const savedPass = localStorage.getItem(STORAGE_KEYS.ADMIN_PASS) || 'ChangeMe123!';
+      const errorEl = document.getElementById('adminLoginError');
+
+      if (username === 'admin' && password === savedPass) {
+        sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+        errorEl.classList.add('hidden');
+        e.target.reset();
+        checkAdminAuthState();
+        showToast('مرحباً بك في لوحة تحكم سوقنا');
+      } else {
+        errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
+        errorEl.classList.remove('hidden');
+      }
+    });
+
+    function adminLogout() {
+      sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+      checkAdminAuthState();
+      showToast('تم تسجيل الخروج من الإدارة');
+    }
+
+    function updateAdminBadge() {
+      const newCount = orders.filter(o => o.status === 'جديد').length;
+      const badge = document.getElementById('adminOrderBadge');
+      if (newCount > 0) {
+        badge.textContent = newCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function switchAdminTab(tab) {
+      const sections = {
+        orders: document.getElementById('adminOrdersSection'),
+        products: document.getElementById('adminProductsSection'),
+        addProduct: document.getElementById('adminAddProductSection')
+      };
+      const buttons = {
+        orders: document.getElementById('tabOrdersBtn'),
+        products: document.getElementById('tabProductsBtn'),
+        addProduct: document.getElementById('tabAddProductBtn')
+      };
+
+      Object.keys(sections).forEach(key => {
+        if (key === tab) {
+          sections[key].classList.remove('hidden');
+          buttons[key].className = 'px-4 py-2.5 rounded-xl text-sm font-extrabold bg-souqna-green text-white transition';
+        } else {
+          sections[key].classList.add('hidden');
+          buttons[key].className = 'px-4 py-2.5 rounded-xl text-sm font-extrabold bg-white text-souqna-muted border border-souqna-line hover:text-[#17211d] transition';
+        }
+      });
+    }
+
+    function refreshAdminDashboard() {
+      // تحديث الإحصائيات
+      const validOrders = orders.filter(o => o.status !== 'ملغي');
+      const totalSales = validOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+      const newOrdersCount = orders.filter(o => o.status === 'جديد').length;
+
+      document.getElementById('statSales').textContent = `${formatMoney(totalSales)} ج`;
+      document.getElementById('statOrders').textContent = orders.length;
+      document.getElementById('statNewOrders').textContent = newOrdersCount;
+      document.getElementById('statProducts').textContent = products.length;
+
+      renderAdminOrders();
+      renderAdminProducts();
+    }
+
+    // عرض وإدارة الطلبات
+    function renderAdminOrders() {
+      const container = document.getElementById('adminOrdersList');
+      const filterStatus = document.getElementById('orderStatusFilter')?.value || 'ALL';
+      const filteredOrders = filterStatus === 'ALL' ? orders : orders.filter(o => o.status === filterStatus);
+
+      if (!filteredOrders.length) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-souqna-muted text-sm bg-[#f7f8f4] rounded-2xl">
+            لا توجد طلبات مسجلة في هذا التصنيف حالياً.
+          </div>
+        `;
+        return;
+      }
+
+      const statusColors = {
+        'جديد': 'bg-amber-100 text-amber-800 border-amber-200',
+        'قيد التجهيز': 'bg-blue-100 text-blue-800 border-blue-200',
+        'تم الشحن': 'bg-purple-100 text-purple-800 border-purple-200',
+        'مكتمل': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        'ملغي': 'bg-red-100 text-red-800 border-red-200'
+      };
+
+      container.innerHTML = filteredOrders.map(order => `
+        <div class="border border-souqna-line rounded-2xl p-4 bg-[#f7f8f4]/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-black text-base text-souqna-green">طلب #${order.id}</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-extrabold border ${statusColors[order.status] || 'bg-gray-100'}">
+                ${escapeHtml(order.status)}
+              </span>
+              <span class="text-xs text-souqna-muted">• ${escapeHtml(order.created_at || '')}</span>
+            </div>
+            <div class="text-sm font-bold">
+              👤 ${escapeHtml(order.customer_name)} &nbsp;|&nbsp; 📞 <span dir="ltr">${escapeHtml(order.phone)}</span>
+            </div>
+            <div class="text-xs text-souqna-muted">
+              📍 ${escapeHtml(order.address)}
+            </div>
+            <div class="text-xs bg-white border border-souqna-line rounded-xl p-2.5 mt-2">
+              <span class="font-bold text-[#17211d]">المنتجات: </span>
+              ${order.items.map(i => `${escapeHtml(i.name)} (×${i.quantity})`).join(' ، ')}
+            </div>
+          </div>
+
+          <div class="flex flex-row lg:flex-col items-center lg:items-end justify-between gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-souqna-line">
+            <div class="text-lg font-black text-souqna-green">${formatMoney(order.total)} جنيه</div>
+            <div class="flex items-center gap-2">
+              <label class="text-xs font-bold text-souqna-muted">الحالة:</label>
+              <select
+                onchange="updateOrderStatus(${order.id}, this.value)"
+                class="bg-white border border-souqna-line rounded-xl px-3 py-2 text-xs font-extrabold focus:outline-none focus:border-[#176b50]">
+                ${['جديد', 'قيد التجهيز', 'تم الشحن', 'مكتمل', 'ملغي'].map(st => `
+                  <option value="${st}" ${order.status === st ? 'selected' : ''}>${st}</option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateOrderStatus(orderId, newStatus) {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      // إذا تم إلغاء طلب لم يكن ملغياً من قبل، يتم إرجاع الكمية للمخزون تلقائياً
+      if (newStatus === 'ملغي' && order.status !== 'ملغي') {
+        order.items.forEach(item => {
+          const prod = products.find(p => p.id === item.id);
+          if (prod) prod.stock += item.quantity;
+        });
+        saveProducts();
+      } else if (order.status === 'ملغي' && newStatus !== 'ملغي') {
+        // إعادة خصم الكمية عند التراجع عن الإلغاء
+        order.items.forEach(item => {
+          const prod = products.find(p => p.id === item.id);
+          if (prod) prod.stock = Math.max(0, prod.stock - item.quantity);
+        });
+        saveProducts();
+      }
+
+      order.status = newStatus;
+      saveOrders();
+      refreshAdminDashboard();
+      showToast(`تم تحديث حالة الطلب #${orderId} إلى "${newStatus}"`);
+    }
+
+    // عرض وإدارة المنتجات في لوحة الإدارة
+    function renderAdminProducts() {
+      const container = document.getElementById('adminProductsList');
+      if (!products.length) {
+        container.innerHTML = `<p class="text-center py-6 text-souqna-muted text-sm">لا توجد منتجات مضافة حالياً.</p>`;
+        return;
+      }
+
+      container.innerHTML = products.map(p => {
+        const fallbackImg = `https://placehold.co/120x120/edf3ed/176b50?text=SOUQNA`;
+        return `
+          <div class="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3.5">
+              <img
+                src="${escapeHtml(p.image || fallbackImg)}"
+                onerror="this.onerror=null;this.src='${fallbackImg}'"
+                class="w-14 h-14 rounded-xl object-cover bg-[#f0f2ed] border border-souqna-line shrink-0"
+              />
+              <div>
+                <div class="font-extrabold text-sm">${escapeHtml(p.name)}</div>
+                <div class="text-xs text-souqna-muted mt-0.5">
+                  القسم: <span class="font-bold text-[#17211d]">${escapeHtml(p.category)}</span> •
+                  السعر: <span class="font-bold text-souqna-green">${formatMoney(p.price)} ج</span> •
+                  المخزون: <span class="font-bold ${p.stock < 3 ? 'text-red-600' : 'text-[#17211d]'}">${p.stock}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 self-end sm:self-center">
+              <button onclick="openEditProductModal(${p.id})" class="px-3.5 py-2 rounded-xl bg-[#edf3ed] hover:bg-[#dce8dc] text-[#17211d] font-bold text-xs transition">
+                ✏️ تعديل
+              </button>
+              <button onclick="deleteAdminProduct(${p.id})" class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition">
+                🗑️ حذف
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // إضافة منتج جديد
+    document.getElementById('addProductForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const name = formData.get('name').trim();
+      const category = formData.get('category').trim() || 'عام';
+      const price = Math.max(0, Number(formData.get('price')) || 0);
+      const stock = Math.max(0, parseInt(formData.get('stock'), 10) || 0);
+      const image = formData.get('image').trim();
+      const description = formData.get('description').trim();
+
+      if (!name) return;
+
+      const nextId = products.length ? Math.max(...products.map(p => p.id)) + 1 : 101;
+      products.unshift({
+        id: nextId,
+        name,
+        category,
+        price,
+        stock,
+        image,
+        description
+      });
+
+      saveProducts();
+      e.target.reset();
+      refreshAdminDashboard();
+      switchAdminTab('products');
+      showToast(`تمت إضافة "${name}" إلى المتجر بنجاح`);
+    });
+
+    // حذف منتج
+    async function deleteAdminProduct(id) {
+      const prod = products.find(p => p.id === id);
+      if (!prod) return;
+
+      const confirmed = await showConfirm('حذف المنتج', `هل أنت متأكد من حذف "${prod.name}" نهائياً من المتجر؟`);
+      if (!confirmed) return;
+
+      products = products.filter(p => p.id !== id);
+      saveProducts();
+      updateCartUI();
+      refreshAdminDashboard();
+      showToast('تم حذف المنتج بنجاح');
+    }
+
+    // تعديل منتج (فتح النافذة وحفظ التعديلات)
+    function openEditProductModal(id) {
+      const prod = products.find(p => p.id === id);
+      if (!prod) return;
+
+      const form = document.getElementById('editProductForm');
+      form.elements['id'].value = prod.id;
+      form.elements['name'].value = prod.name;
+      form.elements['category'].value = prod.category;
+      form.elements['price'].value = prod.price;
+      form.elements['stock'].value = prod.stock;
+      form.elements['image'].value = prod.image || '';
+      form.elements['description'].value = prod.description || '';
+
+      document.getElementById('editProductModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editProductModal').classList.add('hidden');
+    }
+
+    document.getElementById('editProductForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const id = Number(formData.get('id'));
+      const prod = products.find(p => p.id === id);
+      if (!prod) return;
+
+      prod.name = formData.get('name').trim();
+      prod.category = formData.get('category').trim() || 'عام';
+      prod.price = Math.max(0, Number(formData.get('price')) || 0);
+      prod.stock = Math.max(0, parseInt(formData.get('stock'), 10) || 0);
+      prod.image = formData.get('image').trim();
+      prod.description = formData.get('description').trim();
+
+      saveProducts();
+      updateCartUI();
+      closeEditModal();
+      refreshAdminDashboard();
+      showToast('تم حفظ تعديلات المنتج بنجاح');
+    });
+
+    // مساعدات الصور (رفع محلي مضغوط أو اختيار سريع)
+    function setQuickImage(inputId, url) {
+      document.getElementById(inputId).value = url;
+      showToast('تم اختيار الصورة بنجاح');
+    }
+
+    function handleLocalImageUpload(event, targetInputId) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // ضغط الصورة أوتوماتيكياً لتناسب التخزين المحلي بسلاسة
+          const canvas = document.createElement('canvas');
+          const maxDim = 600;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          document.getElementById(targetInputId).value = compressedDataUrl;
+          showToast('تم رفع الصورة وتجهيزها بنجاح');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // إعدادات الإدارة (تغيير كلمة المرور وإعادة الضبط)
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const newPass = new FormData(e.target).get('newPassword').trim();
+      if (newPass.length < 4) {
+        showToast('يجب أن تتكون كلمة المرور من 4 أحرف على الأقل', 'error');
+        return;
+      }
+      localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, newPass);
+      document.getElementById('hintPassDisplay').textContent = newPass;
+      e.target.reset();
+      closeSettingsModal();
+      showToast('تم تحديث كلمة مرور الإدارة بنجاح');
+    });
+
+    async function resetDemoData() {
+      const confirmed = await showConfirm(
+        'استعادة البيانات الافتراضية',
+        'سيتم مسح جميع الطلبات الحالية واستعادة المنتجات الافتراضية لمتجر سوقنا. هل تريد المتابعة؟'
+      );
+      if (!confirmed) return;
+
+      products = [...DEFAULT_PRODUCTS];
+      orders = [];
+      cart = [];
+      saveProducts();
+      saveOrders();
+      saveCart();
+      updateCartUI();
+      closeSettingsModal();
+      refreshAdminDashboard();
+      showToast('تمت استعادة البيانات الافتراضية بنجاح');
+    }
+
+    // تشغيل التطبيق عند تحميل الصفحة
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
